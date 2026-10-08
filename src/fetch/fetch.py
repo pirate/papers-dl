@@ -8,9 +8,31 @@ import aiohttp
 import pdf2doi
 from loguru import logger
 
-from providers import arxiv, pmc, publisher, scidb, scihub
+from providers import (
+    arxiv,
+    figshare,
+    hal,
+    ntrs,
+    osti,
+    pmc,
+    publisher,
+    scidb,
+    scihub,
+    zenodo,
+)
 
-all_providers = ["publisher", "pmc", "scihub", "scidb", "arxiv"]
+all_providers = [
+    "publisher",
+    "pmc",
+    "zenodo",
+    "figshare",
+    "ntrs",
+    "osti",
+    "hal",
+    "scihub",
+    "scidb",
+    "arxiv",
+]
 
 
 def match_available_providers(
@@ -44,6 +66,16 @@ async def get_urls(session, identifier, providers):
             urls.extend(await publisher.get_urls(session, identifier))
         if mp == "pmc":
             urls.extend(await pmc.get_urls(session, identifier))
+        if mp == "zenodo":
+            urls.extend(await zenodo.get_urls(session, identifier))
+        if mp == "figshare":
+            urls.extend(await figshare.get_urls(session, identifier))
+        if mp == "ntrs":
+            urls.extend(await ntrs.get_urls(session, identifier))
+        if mp == "osti":
+            urls.extend(await osti.get_urls(session, identifier))
+        if mp == "hal":
+            urls.extend(await hal.get_urls(session, identifier))
         if mp == "scihub":
             urls.extend(await scihub.get_direct_urls(session, identifier))
         if mp == "scidb":

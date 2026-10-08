@@ -10,7 +10,15 @@ import fitz
 
 
 class TestOpenAccessCLI(unittest.TestCase):
-    def fetch_paper(self, identifier, provider, expected_text, expected_source):
+    def fetch_paper(
+        self,
+        identifier,
+        provider,
+        expected_text,
+        expected_source,
+        expected_pages=None,
+        text_page=0,
+    ):
         with tempfile.TemporaryDirectory() as output:
             result = subprocess.run(
                 [
@@ -37,7 +45,9 @@ class TestOpenAccessCLI(unittest.TestCase):
             self.assertTrue(files[0].read_bytes().startswith(b"%PDF-"))
             with fitz.open(files[0]) as paper:
                 self.assertGreater(paper.page_count, 0)
-                self.assertIn(expected_text, paper[0].get_text())
+                if expected_pages is not None:
+                    self.assertEqual(paper.page_count, expected_pages)
+                self.assertIn(expected_text, paper[text_page].get_text())
 
     def test_default_provider_downloads_open_access_doi(self):
         self.fetch_paper(
@@ -133,6 +143,103 @@ class TestOpenAccessCLI(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("No papers found", result.stdout, result.stderr)
             self.assertEqual(list(Path(output).iterdir()), [])
+
+    def test_zenodo_record_url(self):
+        self.fetch_paper(
+            "https://zenodo.org/records/13886268",
+            "zenodo",
+            "The Barts Health Data Platform",
+            "zenodo.org/api/records/",
+            7,
+        )
+
+    def test_zenodo_doi(self):
+        self.fetch_paper(
+            "10.5281/zenodo.13886268",
+            "zenodo",
+            "The Barts Health Data Platform",
+            "zenodo.org/api/records/",
+            7,
+        )
+
+    def test_figshare_institutional_doi(self):
+        self.fetch_paper(
+            "10.25405/ncl.34202931.v1",
+            "figshare",
+            "Load shortening characteristics",
+            "amazonaws.com/",
+            28,
+        )
+
+    def test_figshare_institutional_url(self):
+        self.fetch_paper(
+            "https://outputs.ncl.ac.uk/articles/journal_contribution/Load_shortening_characteristics_of_marine_grade_aluminium_alloy_plates_in_longitudinal_compression/34202931",
+            "figshare",
+            "Load shortening characteristics",
+            "amazonaws.com/",
+            28,
+        )
+
+    def test_ntrs_citation_url(self):
+        self.fetch_paper(
+            "https://ntrs.nasa.gov/citations/20170009584",
+            "ntrs",
+            "Web Accessible API",
+            "ntrs.nasa.gov/api/citations/",
+            44,
+        )
+
+    def test_ntrs_identifier(self):
+        self.fetch_paper(
+            "ntrs:20170009584",
+            "ntrs",
+            "Web Accessible API",
+            "ntrs.nasa.gov/api/citations/",
+            44,
+        )
+
+    def test_osti_record_url(self):
+        self.fetch_paper(
+            "https://www.osti.gov/biblio/3413920",
+            "osti",
+            "Modeling and Predicting Lignin",
+            "osti.gov/servlets/purl/",
+            23,
+            text_page=1,
+        )
+
+    def test_osti_doi(self):
+        self.fetch_paper(
+            "10.2172/3413920",
+            "osti",
+            "Modeling and Predicting Lignin",
+            "osti.gov/servlets/purl/",
+            23,
+            text_page=1,
+        )
+
+    def test_hal_landing_url(self):
+        self.fetch_paper(
+            "https://amu.hal.science/hal-01232674v1",
+            "hal",
+            "EN TORNO A LA CULTURA",
+            "hal.science/",
+            27,
+        )
+
+    def test_hal_explicit_version(self):
+        self.fetch_paper(
+            "hal-01232674v1", "hal", "EN TORNO A LA CULTURA", "hal.science/", 27
+        )
+
+    def test_hal_older_version(self):
+        self.fetch_paper(
+            "hal-03184936v1",
+            "hal",
+            "https://hal.science/hal-03184936v1",
+            "hal.science/hal-03184936v1/document",
+            11,
+        )
 
 
 if __name__ == "__main__":
