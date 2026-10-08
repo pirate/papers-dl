@@ -12,7 +12,7 @@ from parse.parse import find_pdf_url
 # URL-NON-DIRECT - pay-walled paper
 # PMID - PubMed ID
 # DOI - digital object identifier
-IDClass = enum.Enum("identifier", ["URL-DIRECT", "URL-NON-DIRECT", "PMD", "DOI"])
+IDClass = enum.Enum("identifier", ["URL-DIRECT", "URL-NON-DIRECT", "PMID", "DOI"])
 
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15"
 

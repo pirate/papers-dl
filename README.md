@@ -29,7 +29,46 @@ papers-dl fetch -p "sci-hub.ee" "10.1107/s0907444905036693"
 
 # fetch paper from SciDB (Anna's Archive):
 papers-dl fetch -p "scidb" "10.1107/s0907444905036693"
+
+# discover an openly accessible PDF from a DOI or publisher landing page:
+papers-dl fetch -p "publisher" "https://joss.theoj.org/papers/10.21105/joss.01112"
+
+# retrieve an article PDF from the public PMC Article Datasets:
+papers-dl fetch -p "pmc" "10.1126/sciadv.1602552"
 ```
+
+The default `all` provider selection includes `publisher`, `pmc`, `scihub`,
+`scidb`, and `arxiv`. Providers can also be selected with a comma-separated list.
+
+`publisher` follows DOI redirects and reads `citation_pdf_url` metadata,
+PDF-typed links, and embedded PDF URLs. Relative links resolve against the final
+landing-page URL (including an HTML base URL when present). Direct PDF URLs work
+too, including URLs without a `.pdf` extension. Publisher pages that require
+authentication or JavaScript challenges may not be accessible.
+
+`pmc` accepts DOI identifiers/URLs, PubMed IDs, and PMC IDs (including explicit
+versions such as `PMC1193645.2`). It resolves identifiers through the
+[Europe PMC literature API](https://europepmc.org/RestfulWebService) and downloads
+the article PDF identified by metadata in
+[NLM's public PMC Article Datasets](https://pmc.ncbi.nlm.nih.gov/tools/pmcaws/).
+It discovers available versions instead of assuming version 1 exists, preferring
+published articles to author manuscripts. Only PDFs distributed in this public
+dataset are available; a PMC record alone does not guarantee a downloadable PDF.
+Article-level license terms still apply. NLM is the source of the PMC data.
+
+Downloads must have a successful HTTP status and PDF signature; an HTML error
+page is never saved as a PDF, and PDFs served as binary data are accepted. The
+success message reports the final URL of the download that actually completed.
+
+### Tests
+
+```shell
+uv run python -m unittest discover -v
+```
+
+The open-access integration tests make real requests to publishers, Europe PMC,
+and NLM's public S3 dataset. They run the CLI, open the resulting PDFs, and check
+article text. They require network access and do not mock external services.
 
 ### About
 
@@ -64,4 +103,3 @@ Short-term roadmap:
 
 **searching**
 - add a CLI command for searching libraries for papers and metadata
-
