@@ -79,8 +79,9 @@ versions such as `PMC1193645.2`). It resolves identifiers through the
 the article PDF identified by metadata in
 [NLM's public PMC Article Datasets](https://pmc.ncbi.nlm.nih.gov/tools/pmcaws/).
 It discovers available versions instead of assuming version 1 exists, preferring
-published articles to author manuscripts. When the dataset lacks a PDF, the provider reads the public article page's
-PDF metadata. NCBI's automatic SHA-256 download proof is completed with bounded
+published articles to author manuscripts. When the dataset lacks a PDF, the provider reads the article PDF self-link from
+its JATS XML, avoiding browser challenges on the HTML landing page. The public
+article page remains available for records without dataset XML. NCBI's automatic SHA-256 download proof is completed with bounded
 work, without running downloaded JavaScript. A PMC record alone does not
 guarantee a downloadable PDF.
 Article-level license terms still apply. NLM is the source of the PMC data.

@@ -96,3 +96,32 @@ class TestProviderMetadata(unittest.IsolatedAsyncioTestCase):
             urls,
             ["https://www.medrxiv.org/content/10.1101/2021.04.29.21256344v1.full.pdf"],
         )
+
+    async def test_manuscript_pdf_discovery_uses_pmc_dataset_xml(self):
+        """Resolve the article PDF without depending on the browser landing page."""
+        from providers import pmc
+
+        requested = []
+        trace = aiohttp.TraceConfig()
+
+        async def record_request(session, context, params):
+            requested.append(str(params.url))
+
+        trace.on_request_start.append(record_request)
+        async with aiohttp.ClientSession(trace_configs=[trace]) as session:
+            urls = await pmc.get_urls(session, "10.1016/j.cell.2024.11.027")
+        self.assertEqual(
+            urls,
+            ["https://pmc.ncbi.nlm.nih.gov/articles/PMC12340670/pdf/nihms-2099974.pdf"],
+        )
+        self.assertTrue(
+            any("/PMC12340670.1/PMC12340670.1.xml" in url for url in requested),
+            requested,
+        )
+        self.assertFalse(
+            any(
+                url.startswith("https://pmc.ncbi.nlm.nih.gov/articles/")
+                for url in requested
+            ),
+            requested,
+        )
