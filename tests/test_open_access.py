@@ -80,6 +80,19 @@ class TestOpenAccessCLI(unittest.TestCase):
                 self.assertEqual(paper.page_count, 1)
                 self.assertIn("Real PDF rename preservation", paper[0].get_text())
 
+    def test_known_doi_titles_pdf_without_embedded_identifier(self):
+        self.fetch_paper(
+            "10.1086/322460",
+            "unpaywall",
+            "Timescale Stretch Parameterization",
+            "https://arxiv.org/pdf/astro-ph/0104382",
+            expected_filename=(
+                "Timescale Stretch Parameterization of Type Ia "
+                "SupernovaB‐Band Light Curves.pdf"
+            ),
+            env={**os.environ, "UNPAYWALL_EMAIL": "unpaywall-papersdl@archivebox.io"},
+        )
+
     def test_pmc_title_html_is_plain_filename(self):
         self.fetch_paper(
             "10.1038/sj.bjp.0705942",

@@ -160,3 +160,7 @@ Short-term roadmap:
 
 **searching**
 - add a CLI command for searching libraries for papers and metadata
+
+When fetching a known DOI, title lookup reuses that identifier instead of
+extracting it again from the downloaded PDF and searching Google. Other queries
+retain PDF-based title discovery. Downloaded content is unchanged by DOI title lookup.
