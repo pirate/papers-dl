@@ -1,0 +1,21 @@
+src/fetch/fetch.py
+  s_8dbda046044e96::t_ec2a0f0d55ce1d 156-162
+src/providers/pmc.py
+  s_8dbda046044e96::t_e6f1efb0a0081a 202-215,238-251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e60f1de233ce775fc22a0dcba6c3599936d9cfb7",
+  "prompts": {},
+  "sessions": {
+    "s_8dbda046044e96": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a133ba-5ab0-71c3-976a-587dc300c72c",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Nick Sweeting <git@sweeting.me>"
+    }
+  }
+}
