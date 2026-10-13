@@ -13,7 +13,7 @@ from parse.parse import find_pdf_url
 TIMEOUT = aiohttp.ClientTimeout(total=30)
 
 
-async def get_urls(session, identifier):
+async def get_urls(session, identifier, headers=None):
     identifier = identifier.strip()
     if urlsplit(identifier).scheme in ("http", "https"):
         url = identifier
@@ -24,7 +24,7 @@ async def get_urls(session, identifier):
 
     logger.info("Searching publisher: {}", url)
     try:
-        async with session.get(url, timeout=TIMEOUT) as response:
+        async with session.get(url, timeout=TIMEOUT, headers=headers) as response:
             response.raise_for_status()
             content = await response.read()
             if content.startswith(b"%PDF-"):

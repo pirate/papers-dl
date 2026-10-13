@@ -1,18 +1,24 @@
 """Find article PDFs in NLM's public PMC Article Datasets."""
 
 import asyncio
+import hashlib
 import re
-from urllib.parse import unquote, urlsplit, urlunsplit
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 from xml.etree import ElementTree
 
 import aiohttp
 from loguru import logger
+from bs4 import BeautifulSoup
 
 from parse.parse import parse_ids_from_text
+from providers import publisher
 
 SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 DATASET = "https://pmc-oa-opendata.s3.amazonaws.com/"
 TIMEOUT = aiohttp.ClientTimeout(total=30)
+USER_AGENT = (
+    "Mozilla/5.0 (compatible; papers-dl/0.0.25; +https://github.com/benmuth/papers-dl)"
+)
 S3_NAMESPACE = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
 
 
@@ -118,6 +124,18 @@ async def get_urls(session, identifier):
                 if urlsplit(pdf_url).scheme in ("https", "http"):
                     urls.append(pdf_url)
                     break
+            if not versions and "." not in pmcid:
+                # Some author manuscripts expose only text/XML in the dataset.
+                # Their public article page still advertises the original PDF.
+                urls.extend(
+                    await publisher.get_urls(
+                        session,
+                        f"https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/",
+                        headers={
+                            "User-Agent": session.headers.get("User-Agent", USER_AGENT)
+                        },
+                    )
+                )
         return urls
     except (
         aiohttp.ClientError,
@@ -127,3 +145,46 @@ async def get_urls(session, identifier):
     ) as error:
         logger.info("Couldn't find a PubMed Central PDF: {}", error)
         return []
+
+
+async def complete_pdf_download(session, url, content, headers):
+    """Complete PMC's automatic SHA-256 download proof, without executing JS.
+
+    This is the public viewer's POW_CHALLENGE protocol, not a login or CAPTCHA.
+    Bound the work and recognize it only on NCBI's PDF download endpoint.
+    """
+    if (
+        url.scheme != "https"
+        or url.host != "pmc.ncbi.nlm.nih.gov"
+        or "/pdf/" not in url.path
+    ):
+        return None
+    page = BeautifulSoup(content, "html.parser")
+    script = "\n".join(tag.get_text() for tag in page.find_all("script", src=False))
+    challenge = re.search(r'const POW_CHALLENGE = "([A-Za-z0-9_:.-]+)"', script)
+    difficulty = re.search(r'const POW_DIFFICULTY = "([1-4])"', script)
+    cookie = re.search(r'const POW_COOKIE_NAME = "(cloudpmc-viewer-pow)"', script)
+    if not (challenge and difficulty and cookie):
+        return None
+    challenge = challenge.group(1)
+    prefix = "0" * int(difficulty.group(1))
+
+    def solve():
+        for nonce in range(1 << 24):
+            if (
+                hashlib.sha256(f"{challenge}{nonce}".encode())
+                .hexdigest()
+                .startswith(prefix)
+            ):
+                return nonce
+        return None
+
+    nonce = await asyncio.to_thread(solve)
+    if nonce is None:
+        return None
+    session.cookie_jar.update_cookies(
+        {cookie.group(1): quote(f"{challenge},{nonce}", safe=":")}, response_url=url
+    )
+    async with session.get(url, timeout=TIMEOUT, headers=headers) as response:
+        response.raise_for_status()
+        return await response.read(), str(response.url)

@@ -37,9 +37,35 @@ papers-dl fetch -p "publisher" "https://joss.theoj.org/papers/10.21105/joss.0111
 papers-dl fetch -p "pmc" "10.1126/sciadv.1602552"
 ```
 
-The default `all` provider selection includes `publisher`, `pmc`, `zenodo`,
-`figshare`, `ntrs`, `osti`, `hal`, `scihub`, `scidb`, and `arxiv`.
-Providers can also be selected with a comma-separated list.
+The default `all` selection tries `scihub`, `unpaywall`, `pmc`, `europepmc`,
+`biorxiv`, `medrxiv`, `publisher`, `zenodo`, `figshare`, `ntrs`, `osti`, `hal`,
+`scidb`, and `arxiv` in that order. Each provider's PDFs are tried before moving
+to the next provider; the first successful PDF stops the search. A
+comma-separated provider list uses the supplied order.
+
+Sci-Hub mirror discovery reads both links and redirects from
+https://sci-hub.now.sh/. An advertised mirror can still be unreachable; the
+remaining providers are tried when it cannot supply a PDF. Mirror page links
+may be absolute, relative, or protocol-relative.
+
+`unpaywall` looks up a DOI using the [Unpaywall API](https://unpaywall.org/products/api)
+and discovers its best open-access PDF and other advertised PDF locations.
+The API requires a contact email; set `UNPAYWALL_EMAIL` to enable it:
+
+```shell
+UNPAYWALL_EMAIL=you@your-domain.org papers-dl fetch -p unpaywall 10.21105/joss.01112
+```
+
+`europepmc` uses the [Europe PMC API](https://europepmc.org/RestfulWebService)
+to discover open-access and free-to-read PDF links by DOI, PMID, or PMCID. It follows
+`pmc` because the NLM dataset can serve articles whose web PDF endpoints are
+blocked by a browser challenge.
+
+`biorxiv` and `medrxiv` use their [metadata API](https://api.biorxiv.org/)
+to resolve DOIs and choose the latest preprint version. Explicit version URLs
+preserve the requested version. Published DOIs are mapped to preprints through
+the API's `pubs` endpoint. Download endpoints may still return rate limits or
+browser challenges; these responses are never saved as PDFs.
 
 `publisher` follows DOI redirects and reads `citation_pdf_url` metadata,
 PDF-typed links, and embedded PDF URLs. Relative links resolve against the final
@@ -53,8 +79,10 @@ versions such as `PMC1193645.2`). It resolves identifiers through the
 the article PDF identified by metadata in
 [NLM's public PMC Article Datasets](https://pmc.ncbi.nlm.nih.gov/tools/pmcaws/).
 It discovers available versions instead of assuming version 1 exists, preferring
-published articles to author manuscripts. Only PDFs distributed in this public
-dataset are available; a PMC record alone does not guarantee a downloadable PDF.
+published articles to author manuscripts. When the dataset lacks a PDF, the provider reads the public article page's
+PDF metadata. NCBI's automatic SHA-256 download proof is completed with bounded
+work, without running downloaded JavaScript. A PMC record alone does not
+guarantee a downloadable PDF.
 Article-level license terms still apply. NLM is the source of the PMC data.
 
 Five additional repository providers use public metadata and download endpoints;
@@ -88,13 +116,15 @@ success message reports the final URL of the download that actually completed.
 ### Tests
 
 ```shell
-uv run python -m unittest discover -v
+UNPAYWALL_EMAIL=you@your-domain.org uv run python -m unittest discover -v
 ```
 
 The open-access integration tests make real requests to publishers, Europe PMC,
 NLM's public S3 dataset, and all five additional repositories. They run the CLI,
 open the resulting PDFs, and check article text and page counts. They require
-network access and do not mock external services.
+network access and do not mock external services. The DOI fallback tests also
+exercise Unpaywall, bioRxiv, and medRxiv metadata; set `UNPAYWALL_EMAIL` for the
+live Unpaywall download test.
 
 ### About
 

@@ -29,7 +29,10 @@ async def get_urls(session, identifier):
         params["doi"] = dois[0]["id"]
     try:
         async with session.get(
-            endpoint, params=params, timeout=aiohttp.ClientTimeout(total=30)
+            endpoint,
+            params=params,
+            headers={"Accept": "application/json"},
+            timeout=aiohttp.ClientTimeout(total=30),
         ) as response:
             response.raise_for_status()
             records = await response.json()

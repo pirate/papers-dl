@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from typing import Iterable
+from urllib.parse import urlsplit
 
 import aiohttp
 import pdf2doi
@@ -10,6 +11,10 @@ from loguru import logger
 
 from providers import (
     arxiv,
+    biorxiv,
+    medrxiv,
+    unpaywall,
+    europepmc,
     figshare,
     hal,
     ntrs,
@@ -22,14 +27,18 @@ from providers import (
 )
 
 all_providers = [
-    "publisher",
+    "scihub",
+    "unpaywall",
     "pmc",
+    "europepmc",
+    "biorxiv",
+    "medrxiv",
+    "publisher",
     "zenodo",
     "figshare",
     "ntrs",
     "osti",
     "hal",
-    "scihub",
     "scidb",
     "arxiv",
 ]
@@ -43,6 +52,9 @@ def match_available_providers(
         available_providers = all_providers
     matching_providers = []
     for provider in providers:
+        if provider in available_providers:
+            matching_providers.append(provider)
+            continue
         for available_provider in available_providers:
             # a user-supplied provider might be a substring of a supported
             # provider (e.g. sci-hub.ee instead of https://sci-hub.ee)
@@ -62,6 +74,14 @@ async def get_urls(session, identifier, providers):
     matching_providers = match_available_providers(providers)
     logger.info(f"matching providers: {matching_providers}")
     for mp in matching_providers:
+        if mp == "unpaywall":
+            urls.extend(await unpaywall.get_urls(session, identifier))
+        if mp == "europepmc":
+            urls.extend(await europepmc.get_urls(session, identifier))
+        if mp == "biorxiv":
+            urls.extend(await biorxiv.get_urls(session, identifier))
+        if mp == "medrxiv":
+            urls.extend(await medrxiv.get_urls(session, identifier))
         if mp == "publisher":
             urls.extend(await publisher.get_urls(session, identifier))
         if mp == "pmc":
@@ -106,35 +126,61 @@ async def fetch(session, identifier, providers) -> tuple | None:
     # catch exceptions so that they don't cancel the task group
     async def get_wrapper(url):
         try:
-            async with session.get(url) as response:
+            headers = None
+            if urlsplit(url).hostname in {
+                "pmc.ncbi.nlm.nih.gov",
+                "www.biorxiv.org",
+                "www.medrxiv.org",
+            }:
+                # These public download servers reject the generic aiohttp UA.
+                # Keep other providers' existing defaults and honor -A overrides.
+                headers = {
+                    "User-Agent": session.headers.get("User-Agent", pmc.USER_AGENT)
+                }
+            async with session.get(
+                url, timeout=aiohttp.ClientTimeout(total=30), headers=headers
+            ) as response:
                 response.raise_for_status()
                 content = await response.read()
+                source = str(response.url)
+                if not content.startswith(b"%PDF-"):
+                    completed = await pmc.complete_pdf_download(
+                        session, response.url, content, headers
+                    )
+                    if completed:
+                        content, source = completed
                 # Repositories may serve PDFs as application/octet-stream;
                 # conversely a PDF content type alone does not prove a PDF.
                 if content.startswith(b"%PDF-"):
-                    return content, str(response.url)
+                    return content, source
                 logger.info("No PDF returned from {}", url)
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             logger.error("error: {}", e)
         return None
 
-    urls = await get_urls(session, identifier, providers)
-
-    urls = list(dict.fromkeys(url for url in urls if url))
-
-    if len(urls) > 0:
-        logger.info("PDF urls: {}", "\n".join(urls))
-    tasks = [asyncio.create_task(get_wrapper(url)) for url in urls]
-    try:
-        for task in asyncio.as_completed(tasks):
-            result = await task
-            if result is not None:
-                return result
-    finally:
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+    selected = (
+        all_providers
+        if providers == "all"
+        else [p.strip() for p in providers.split(",")]
+    )
+    # Download before discovering the next provider, so a dead mirror or slow
+    # repository cannot delay a PDF already found by an earlier provider.
+    seen = set()
+    for provider in selected:
+        urls = await get_urls(session, identifier, provider)
+        urls = list(dict.fromkeys(url for url in urls if url and url not in seen))
+        seen.update(urls)
+        tasks = [asyncio.create_task(get_wrapper(url)) for url in urls]
+        try:
+            for task in asyncio.as_completed(tasks):
+                result = await task
+                if result is not None:
+                    return result
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
     return None
 
 

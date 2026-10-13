@@ -1,5 +1,6 @@
 """Integration tests against real publisher and NLM open-access services."""
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,8 @@ class TestOpenAccessCLI(unittest.TestCase):
         expected_source,
         expected_pages=None,
         text_page=0,
+        env=None,
+        expected_doi=None,
     ):
         with tempfile.TemporaryDirectory() as output:
             result = subprocess.run(
@@ -32,6 +35,7 @@ class TestOpenAccessCLI(unittest.TestCase):
                     output,
                     identifier,
                 ],
+                env=env,
                 capture_output=True,
                 text=True,
                 timeout=90,
@@ -48,6 +52,9 @@ class TestOpenAccessCLI(unittest.TestCase):
                 if expected_pages is not None:
                     self.assertEqual(paper.page_count, expected_pages)
                 self.assertIn(expected_text, paper[text_page].get_text())
+                if expected_doi:
+                    self.assertIn(expected_doi, paper[0].get_text())
+            return result
 
     def test_default_provider_downloads_open_access_doi(self):
         self.fetch_paper(
@@ -55,6 +62,7 @@ class TestOpenAccessCLI(unittest.TestCase):
             "all",
             "Microbial arms race",
             "https://pmc-oa-opendata.s3.amazonaws.com/",
+            env={**os.environ, "UNPAYWALL_EMAIL": ""},
         )
 
     def test_pmc_resolves_doi_url(self):
