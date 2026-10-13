@@ -9,6 +9,8 @@ from pathlib import Path
 
 import fitz
 
+from fetch.fetch import rename
+
 
 class TestOpenAccessCLI(unittest.TestCase):
     def fetch_paper(
@@ -21,6 +23,7 @@ class TestOpenAccessCLI(unittest.TestCase):
         text_page=0,
         env=None,
         expected_doi=None,
+        expected_filename=None,
     ):
         with tempfile.TemporaryDirectory() as output:
             result = subprocess.run(
@@ -47,6 +50,8 @@ class TestOpenAccessCLI(unittest.TestCase):
             files = list(Path(output).glob("*.pdf"))
             self.assertEqual(len(files), 1, result.stdout)
             self.assertTrue(files[0].read_bytes().startswith(b"%PDF-"))
+            if expected_filename is not None:
+                self.assertEqual(files[0].name, expected_filename)
             with fitz.open(files[0]) as paper:
                 self.assertGreater(paper.page_count, 0)
                 if expected_pages is not None:
@@ -55,6 +60,38 @@ class TestOpenAccessCLI(unittest.TestCase):
                 if expected_doi:
                     self.assertIn(expected_doi, paper[0].get_text())
             return result
+
+    def test_title_rename_preserves_pdf_bytes_and_output_directory(self):
+        with tempfile.TemporaryDirectory() as output:
+            original = Path(output) / "paper.pdf"
+            with fitz.open() as paper:
+                page = paper.new_page()
+                page.insert_text((72, 72), "Real PDF rename preservation")
+                paper.save(original)
+            content = original.read_bytes()
+            renamed = Path(
+                rename(output, str(original), "Ca<sup>2+</sup> &amp; Na/K \\ channels")
+            )
+            self.assertEqual(renamed, Path(output) / "Ca2+ & Na_K _ channels.pdf")
+            self.assertFalse(original.exists())
+            self.assertEqual(renamed.read_bytes(), content)
+            self.assertEqual(list(Path(output).iterdir()), [renamed])
+            with fitz.open(renamed) as paper:
+                self.assertEqual(paper.page_count, 1)
+                self.assertIn("Real PDF rename preservation", paper[0].get_text())
+
+    def test_pmc_title_html_is_plain_filename(self):
+        self.fetch_paper(
+            "10.1038/sj.bjp.0705942",
+            "pmc",
+            "Intravenous anaesthetics",
+            "https://pmc.ncbi.nlm.nih.gov/articles/PMC1575970/pdf/144-0705942a.pdf",
+            expected_filename=(
+                "Intravenous anaesthetics inhibit nicotinic acetylcholine "
+                "receptor‐mediated currents and Ca2+ transients in rat "
+                "intracardiac ganglion neurons.pdf"
+            ),
+        )
 
     def test_default_provider_downloads_open_access_doi(self):
         self.fetch_paper(
