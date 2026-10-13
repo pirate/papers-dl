@@ -1,0 +1,43 @@
+README.md
+  s_fc592191f5c2e8::t_71cd1794a41ab6 40-68,82-85,119,125-127
+src/fetch/fetch.py
+  s_fc592191f5c2e8::t_b67e1d95038e49 6,14-17,30-31,33-36,55-57,77-84,129-142,145-151,155,161-183
+src/providers/biorxiv.py
+  s_fc592191f5c2e8::t_692563a557dbd8 1-76
+src/providers/europepmc.py
+  s_fc592191f5c2e8::t_c1e32a5c146a41 1-56
+src/providers/medrxiv.py
+  s_fc592191f5c2e8::t_2e39f0034384cb 1-7
+src/providers/osti.py
+  s_fc592191f5c2e8::t_48fe1d344fe924 32-35
+src/providers/pmc.py
+  s_fc592191f5c2e8::t_8c1ec095998a85 4,6,11,14,19-21,127-138,148-190
+src/providers/publisher.py
+  s_fc592191f5c2e8::t_dcc8398bb1d964 16,27
+src/providers/scihub.py
+  s_fc592191f5c2e8::t_062d1207c94537 3,24-25,27,29-65,77-78,83-85,87-106
+src/providers/unpaywall.py
+  s_fc592191f5c2e8::t_5e0acd1841b99b 1-46
+tests/test_doi_fallbacks.py
+  s_fc592191f5c2e8::t_f204e1c333852f 1-98
+tests/test_fetch.py
+  s_fc592191f5c2e8::t_02bae864c891c7 15-17
+tests/test_open_access.py
+  s_fc592191f5c2e8::t_643e4b918be717 3,22-23,38,55-57,65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e21d2a2c90a0ec3cdcdde7efc1877c498ffb7f10",
+  "prompts": {},
+  "sessions": {
+    "s_fc592191f5c2e8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a133c8-4002-7303-9eb8-9ac868c98d1f",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Nick Sweeting <git@sweeting.me>"
+    }
+  }
+}
