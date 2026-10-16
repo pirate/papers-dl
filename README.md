@@ -164,3 +164,6 @@ Short-term roadmap:
 When fetching a known DOI, title lookup reuses that identifier instead of
 extracting it again from the downloaded PDF and searching Google. Other queries
 retain PDF-based title discovery. Downloaded content is unchanged by DOI title lookup.
+Long title filenames fit within 255 UTF-8 bytes, including the PDF extension.
+Truncated titles include a title hash so distinct titles sharing a prefix remain
+separate files, including on object stores mounted through a local file cache.

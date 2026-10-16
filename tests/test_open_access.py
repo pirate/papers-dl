@@ -80,6 +80,40 @@ class TestOpenAccessCLI(unittest.TestCase):
                 self.assertEqual(paper.page_count, 1)
                 self.assertIn("Real PDF rename preservation", paper[0].get_text())
 
+    def test_long_titles_keep_distinct_complete_pdfs_in_portable_filenames(self):
+        titles = [
+            "Potential benefit of retrospective use of neutron monitors in improving "
+            "ionising radiation exposure assessment on international flights: issues "
+            "raised by neutron passive dosimeter measurements and EPCARD simulations "
+            "during sudden changes in solar activity",
+            "研究結果" * 90 + " first paper",
+            "研究結果" * 90 + " second paper",
+        ]
+        with tempfile.TemporaryDirectory() as output:
+            saved = {}
+            for index, title in enumerate(titles):
+                original = Path(output) / f"source-{index}.pdf"
+                with fitz.open() as paper:
+                    page = paper.new_page()
+                    page.insert_text((72, 72), f"Complete paper {index}")
+                    paper.save(original)
+                content = original.read_bytes()
+                renamed = Path(rename(output, str(original), title))
+                self.assertNotEqual(renamed, original)
+                self.assertEqual(renamed.parent, Path(output))
+                self.assertLessEqual(len(renamed.name.encode("utf-8")), 255)
+                self.assertTrue(renamed.name.startswith(title[:10]))
+                self.assertEqual(renamed.suffix, ".pdf")
+                self.assertNotIn(renamed, saved)
+                self.assertFalse(original.exists())
+                saved[renamed] = content
+                with fitz.open(renamed) as paper:
+                    self.assertEqual(paper.page_count, 1)
+                    self.assertIn(f"Complete paper {index}", paper[0].get_text())
+            self.assertEqual(set(Path(output).iterdir()), set(saved))
+            for path, content in saved.items():
+                self.assertEqual(path.read_bytes(), content)
+
     def test_known_doi_titles_pdf_without_embedded_identifier(self):
         self.fetch_paper(
             "10.1086/322460",
